@@ -55,7 +55,8 @@ class CommodityPriceClient:
                 'access_key': self.api_key,
                 'symbols': symbol
             }
-            response = requests.get(url, params=params)
+            
+            response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
@@ -68,11 +69,26 @@ class CommodityPriceClient:
                     'unix_timestamp': data.get('timestamp', int(time.time()))
                 }
             else:
-                logger.error(f"No price data found for {commodity} ({symbol}): {data}")
+                logger.error(f"API响应无效 - 商品: {commodity} ({symbol}), 响应: {data}")
                 return None
                 
+        except requests.exceptions.Timeout:
+            logger.error(f"API请求超时 - 商品: {commodity}")
+            return None
+        except requests.exceptions.ConnectionError:
+            logger.error(f"网络连接错误 - 商品: {commodity}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"HTTP错误 - 商品: {commodity}, 状态码: {e.response.status_code}")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API请求失败 - 商品: {commodity}, 错误: {e}")
+            return None
+        except ValueError as e:
+            logger.error(f"JSON解析失败 - 商品: {commodity}, 错误: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Failed to get price for {commodity}: {e}")
+            logger.error(f"获取价格时发生未知错误 - 商品: {commodity}, 错误: {e}")
             return None
     
     def get_historical_prices(self, commodity, days=7):
@@ -95,18 +111,33 @@ class CommodityPriceClient:
                 'end_date': end_date.strftime('%Y-%m-%d')
             }
             
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
             if data.get('success'):
                 return data.get('rates', {})
             else:
-                logger.error(f"Historical data request failed: {data}")
+                logger.error(f"历史数据API响应无效 - 商品: {commodity} ({symbol}), 响应: {data}")
                 return {}
             
+        except requests.exceptions.Timeout:
+            logger.error(f"历史数据API请求超时 - 商品: {commodity}")
+            return {}
+        except requests.exceptions.ConnectionError:
+            logger.error(f"历史数据网络连接错误 - 商品: {commodity}")
+            return {}
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"历史数据HTTP错误 - 商品: {commodity}, 状态码: {e.response.status_code}")
+            return {}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"历史数据API请求失败 - 商品: {commodity}, 错误: {e}")
+            return {}
+        except ValueError as e:
+            logger.error(f"历史数据JSON解析失败 - 商品: {commodity}, 错误: {e}")
+            return {}
         except Exception as e:
-            logger.error(f"Failed to get historical data for {commodity}: {e}")
+            logger.error(f"获取历史数据时发生未知错误 - 商品: {commodity}, 错误: {e}")
             return {}
 
 class CommodityDataManager:
@@ -119,14 +150,56 @@ class CommodityDataManager:
     def _load_data(self):
         """加载历史数据"""
         if self.data_file.exists():
-            with open(self.data_file, 'r') as f:
-                return json.load(f)
-        return {}
+            try:
+                with open(self.data_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                logger.info(f"成功加载历史数据：{len(data)} 个商品")
+                return data
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON文件损坏，无法解析：{self.data_file}, 错误: {e}")
+                # 尝试备份损坏的文件
+                backup_file = self.data_file.with_suffix('.backup')
+                try:
+                    self.data_file.rename(backup_file)
+                    logger.info(f"损坏的数据文件已备份到：{backup_file}")
+                except Exception:
+                    pass
+                return {}
+            except PermissionError:
+                logger.error(f"权限不足，无法读取数据文件：{self.data_file}")
+                return {}
+            except Exception as e:
+                logger.error(f"加载数据文件时发生错误：{self.data_file}, 错误: {e}")
+                return {}
+        else:
+            logger.info("数据文件不存在，将创建新的数据存储")
+            return {}
     
     def save_data(self):
         """保存数据"""
-        with open(self.data_file, 'w') as f:
-            json.dump(self.data, f, default=str, indent=2)
+        try:
+            # 先保存到临时文件，然后重命名，确保原子性操作
+            temp_file = self.data_file.with_suffix('.tmp')
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(self.data, f, default=str, indent=2, ensure_ascii=False)
+            
+            # 原子性重命名
+            temp_file.replace(self.data_file)
+            logger.debug(f"数据已保存到 {self.data_file}")
+            
+        except PermissionError:
+            logger.error(f"保存数据失败：权限不足 - {self.data_file}")
+        except OSError as e:
+            logger.error(f"保存数据失败：磁盘错误 - {self.data_file}, 错误: {e}")
+        except Exception as e:
+            logger.error(f"保存数据失败：未知错误 - {self.data_file}, 错误: {e}")
+            # 清理临时文件
+            temp_file = self.data_file.with_suffix('.tmp')
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except:
+                    pass
     
     def add_price_data(self, commodity, price_data):
         """添加价格数据"""
@@ -339,30 +412,75 @@ class CommodityReportSystem:
         """收集当前价格"""
         logger.info("开始收集商品价格数据...")
         
-        for commodity in self.commodities:
-            price_data = self.client.get_current_price(commodity)
-            if price_data:
-                self.data_manager.add_price_data(commodity, price_data)
-                logger.info(f"{commodity}: ${price_data['price']:.2f}")
+        success_count = 0
+        total_count = len(self.commodities)
         
-        self.data_manager.save_data()
-        logger.info("价格数据收集完成")
+        for commodity in self.commodities:
+            try:
+                price_data = self.client.get_current_price(commodity)
+                if price_data:
+                    self.data_manager.add_price_data(commodity, price_data)
+                    logger.info(f"{commodity}: ${price_data['price']:.2f}")
+                    success_count += 1
+                else:
+                    logger.warning(f"未能获取 {commodity} 的价格数据")
+            except Exception as e:
+                logger.error(f"处理商品 {commodity} 时发生错误: {e}")
+        
+        try:
+            self.data_manager.save_data()
+            logger.info(f"价格数据收集完成 - 成功: {success_count}/{total_count}")
+        except Exception as e:
+            logger.error(f"保存价格数据时发生错误: {e}")
+            
+        if success_count == 0:
+            logger.error("警告：未能收集到任何商品的价格数据！")
     
     def generate_reports(self):
         """生成所有报告"""
         logger.info("开始生成报告...")
         
+        report_success_count = 0
+        total_reports = 3 + len(self.commodities)  # 汇总报告 + 单个商品图表 + 对比图表
+        
         # 生成汇总报告
-        csv_file, html_file = self.report_generator.generate_summary_report(self.commodities)
+        try:
+            csv_file, html_file = self.report_generator.generate_summary_report(self.commodities)
+            if csv_file and html_file:
+                logger.info("汇总报告生成成功")
+                report_success_count += 1
+            else:
+                logger.warning("汇总报告生成失败或无数据")
+        except Exception as e:
+            logger.error(f"生成汇总报告时发生错误: {e}")
         
         # 生成单个商品图表
         for commodity in self.commodities:
-            self.report_generator.generate_price_chart(commodity, days=7)
+            try:
+                chart_file = self.report_generator.generate_price_chart(commodity, days=7)
+                if chart_file:
+                    logger.debug(f"{commodity} 价格图表生成成功")
+                    report_success_count += 1
+                else:
+                    logger.warning(f"{commodity} 价格图表生成失败")
+            except Exception as e:
+                logger.error(f"生成 {commodity} 价格图表时发生错误: {e}")
         
         # 生成对比图表
-        self.report_generator.generate_comparison_chart(self.commodities)
+        try:
+            comparison_file = self.report_generator.generate_comparison_chart(self.commodities)
+            if comparison_file:
+                logger.info("对比图表生成成功")
+                report_success_count += 1
+            else:
+                logger.warning("对比图表生成失败")
+        except Exception as e:
+            logger.error(f"生成对比图表时发生错误: {e}")
         
-        logger.info("报告生成完成")
+        logger.info(f"报告生成完成 - 成功: {report_success_count}/{total_reports}")
+        
+        if report_success_count == 0:
+            logger.error("警告：未能生成任何报告！")
     
     def run_scheduled_tasks(self):
         """运行定时任务"""
@@ -380,21 +498,52 @@ class CommodityReportSystem:
         logger.info("定时任务已设置: 每小时收集数据，每天8:00和18:00生成报告")
         
         while True:
-            schedule.run_pending()
-            time.sleep(60)  # 每分钟检查一次
+            try:
+                schedule.run_pending()
+                time.sleep(60)  # 每分钟检查一次
+            except Exception as e:
+                logger.error(f"定时任务执行出错: {e}")
+                logger.info("系统将在60秒后重试...")
+                time.sleep(60)
 
 def main():
     """主函数"""
-    from config import API_KEY, DEFAULT_COMMODITIES, COMMODITY_SYMBOLS
+    try:
+        from config import API_KEY, DEFAULT_COMMODITIES, COMMODITY_SYMBOLS
+    except ImportError as e:
+        logger.error(f"配置文件加载失败: {e}")
+        logger.error("请确保 config.py 文件存在且格式正确")
+        return
+    except Exception as e:
+        logger.error(f"配置加载异常: {e}")
+        return
+    
+    # 验证必要的配置
+    try:
+        if not API_KEY:
+            raise ValueError("API_KEY 不能为空")
+        if not DEFAULT_COMMODITIES:
+            raise ValueError("DEFAULT_COMMODITIES 不能为空")
+    except (NameError, ValueError) as e:
+        logger.error(f"配置验证失败: {e}")
+        logger.error("请检查 config.py 中的 API_KEY 和 DEFAULT_COMMODITIES 设置")
+        return
     
     # 创建系统实例
-    system = CommodityReportSystem(API_KEY, DEFAULT_COMMODITIES, COMMODITY_SYMBOLS)
+    try:
+        system = CommodityReportSystem(API_KEY, DEFAULT_COMMODITIES, COMMODITY_SYMBOLS)
+    except Exception as e:
+        logger.error(f"系统初始化失败: {e}")
+        return
     
     # 启动定时任务
     try:
         system.run_scheduled_tasks()
     except KeyboardInterrupt:
         logger.info("系统停止")
+    except Exception as e:
+        logger.error(f"系统运行异常: {e}")
+        logger.info("系统将退出")
 
 if __name__ == "__main__":
     main()
