@@ -1,0 +1,8 @@
+requests
+websockets
+pandas
+beautifulsoup4
+lxml
+openpyxl
+matplotlib
+seaborn 
