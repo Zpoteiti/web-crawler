@@ -119,7 +119,7 @@ simple_scrapers:
 | **API接口** | `method: "requests"` | REST API、JSON数据 |
 | **静态网页** | `method: "requests"` | 表格数据、HTML内容 |
 | **动态网页** | `method: "selenium"` | JavaScript渲染的页面 |
-| **macOS专用** | `method: "applescript"` | 需要特殊控制的网站 |
+| **桌面自动化** | `method: "rpa"` | 需要模拟真实用户键盘、窗口操作的复杂网站 |
 
 ---
 
@@ -248,9 +248,12 @@ your_scraper:
 
 ### 🔧 **系统要求**
 - **Python**: 3.8+
-- **Chrome浏览器**: 最新版本（selenium模式需要）
+- **Chrome浏览器**: 最新版本（selenium/rpa模式需要）
 - **内存**: 512MB+
 - **系统**: macOS / Linux / Windows
+- **RPA模式依赖**:
+  - **Linux**: 需要预先安装 `xdotool` (`sudo apt-get install xdotool`)
+  - **Windows**: 需要 `pyautogui` (已在`requirements.txt`中)
 
 ---
 

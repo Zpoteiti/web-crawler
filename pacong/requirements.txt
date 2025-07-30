@@ -1,8 +1,8 @@
 requests
-websockets
 pandas
-beautifulsoup4
-lxml
 openpyxl
-matplotlib
-seaborn 
+lxml
+beautifulsoup4
+undetected-chromedriver
+selenium
+pyautogui 
