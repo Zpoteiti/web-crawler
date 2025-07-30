@@ -272,7 +272,7 @@ your_scraper:
 
 ## 📄 许可证
 
-MIT License - 自由使用、修改、分发
+保留所有权利 (All Rights Reserved) - 允许个人学习和使用，未经授权禁止任何形式的重新分发或商业用途。
 
 ---
 
