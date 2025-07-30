@@ -21,6 +21,7 @@ xlsxwriter>=3.1.0
 selenium>=4.15.0
 undetected-chromedriver>=3.5.0
 websockets>=11.0.0
+pyautogui ; sys_platform == "win32" # For Windows RPA automation
 
 # 日志和输出美化
 colorama>=0.4.6

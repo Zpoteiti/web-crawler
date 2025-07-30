@@ -17,11 +17,14 @@
 ## 🎯 三种使用方式
 
 ### 1️⃣ **直接运行（最简单）**
-```bash
-cd pacong
+
+# 在项目根目录安装所有依赖 (pip会自动处理好系统差异)
 pip install -r requirements.txt
+
+# 进入应用目录并运行
+cd pacong
 python main.py
-```
+
 📋 **结果**：自动爬取所有内置数据源，生成分析报告
 
 ### 2️⃣ **选择数据源**
@@ -157,30 +160,31 @@ simple_scrapers:
 ## ⚡ 快速上手
 
 ### 🔥 **30秒快速体验**
-```bash
+
 git clone <repo-url>
-cd Large/pacong
+cd Large
 pip install -r requirements.txt
+
+cd pacong
 python main.py --scrapers simple_coingecko_test
-```
 
 ### 🎯 **常用命令**
-```bash
+
+# 在项目根目录执行
 # 查看所有可用数据源
-python main.py --list-scrapers
+python pacong/main.py --list-scrapers
 
 # 运行特定数据源
-python main.py --scrapers business_insider sina_finance
+python pacong/main.py --scrapers business_insider sina_finance
 
 # 调试模式（查看详细过程）
-python main.py --log-level DEBUG
+python pacong/main.py --log-level DEBUG
 
 # 自定义输出目录
-python main.py --output-dir ./my-reports
+python pacong/main.py --output-dir ./my-reports
 
 # 静默模式（只显示错误）
-python main.py --quiet
-```
+python pacong/main.py --quiet
 
 ---
 
