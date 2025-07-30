@@ -17,11 +17,11 @@
 ## 🎯 三种使用方式
 
 ### 1️⃣ **直接运行（最简单）**
-
-cd backend
+```bash
+cd pacong
 pip install -r requirements.txt
 python main.py
-
+```
 📋 **结果**：自动爬取所有内置数据源，生成分析报告
 
 ### 2️⃣ **选择数据源**
@@ -31,9 +31,8 @@ python main.py --list-scrapers  # 查看所有可用数据源
 ```
 
 ### 3️⃣ **添加新数据源（零代码）**
-
-编辑 `backend/config/settings.yaml`，添加：
-
+编辑 `config/settings.yaml`，添加：
+```yaml
 simple_scrapers:
   my_new_site:
     enabled: true
@@ -48,23 +47,25 @@ simple_scrapers:
 ## 📁 项目结构
 
 ```
-.
-├── backend/                     # 🐍 Python后端 (数据爬取 & 分析)
-│   ├── 🚀 main.py               # 启动程序
-│   ├── ⚙️ config/settings.yaml  # 配置文件
-│   ├── 📊 reports/              # 输出报告
-│   └── ...
-└── frontend/                    # ⚛️ React前端 (数据展示)
-    └── src/
-        └── App.tsx
-
+pacong/                          # 🏠 主目录
+├── 🚀 main.py                   # 启动程序（这里开始）
+├── ⚙️ config/settings.yaml      # 配置文件（添加新网站）
+├── 📊 reports/                  # 输出目录（查看结果）
+├── core/                       # 🔧 核心模块（无需修改）
+├── scrapers/                   # 🕷️ 爬虫模块
+│   ├── business_insider.py     # Business Insider商品数据
+│   ├── sina_finance.py         # 新浪财经外汇数据
+│   ├── worldbank.py            # 世界银行数据
+│   └── simple_generic.py       # 🎯 通用爬虫（配置驱动）
+├── data/                       # 📋 数据处理
+├── output/                     # 📄 输出格式
+└── requirements.txt            # 📦 依赖包
 ```
 
 **📍 重点文件：**
-
-*   **运行程序**：`backend/main.py`
-*   **添加网站**：`backend/config/settings.yaml`
-*   **查看结果**：`backend/reports/` 目录
+- **运行程序**：`main.py`
+- **添加网站**：`config/settings.yaml`
+- **查看结果**：`reports/` 目录
 
 ---
 
@@ -156,11 +157,12 @@ simple_scrapers:
 ## ⚡ 快速上手
 
 ### 🔥 **30秒快速体验**
-
+```bash
 git clone <repo-url>
-cd Large/backend
+cd Large/pacong
 pip install -r requirements.txt
 python main.py --scrapers simple_coingecko_test
+```
 
 ### 🎯 **常用命令**
 ```bash
