@@ -34,6 +34,10 @@ aiohttp>=3.8.0
 plotly>=5.17.0
 matplotlib>=3.7.0
 
+# HTTP API 服务
+fastapi>=0.110.0
+uvicorn>=0.23.0
+
 # 系统说明
 # macOS AppleScript - 系统内置，无需额外安装
-# Chrome浏览器 - 需要手动安装 Google Chrome 
+# Chrome浏览器 - 需要手动安装 Google Chrome

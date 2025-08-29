@@ -6,6 +6,7 @@
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 
 from ..core import get_logger, get_config
 from ..data import CommodityData, DataProcessor, DataValidator
@@ -14,19 +15,33 @@ from ..output.csv_writer import CSVWriter
 from ..output.excel_writer import ExcelWriter
 
 
+_file_locks: Dict[Path, Lock] = {}
+
+
+def _get_lock(path: Path) -> Lock:
+    lock = _file_locks.get(path)
+    if lock is None:
+        lock = Lock()
+        _file_locks[path] = lock
+    return lock
+
+
 class CommodityService:
     """商品数据服务"""
-    
-    def __init__(self):
+
+    def __init__(self, output_dir: Optional[Union[str, Path]] = None):
         self.logger = get_logger(__name__)
         self.config = get_config()
         self.data_processor = DataProcessor()
         self.data_validator = DataValidator()
-        
+
         # 输出目录
-        self.output_dir = Path(self.config.output.reports_dir)
-        self.output_dir.mkdir(exist_ok=True)
-        
+        if output_dir is not None:
+            self.output_dir = Path(output_dir)
+        else:
+            self.output_dir = Path(self.config.output.reports_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         self.logger.info("商品数据服务初始化完成")
     
     def collect_all_commodity_data(self, scraper_names: Optional[List[str]] = None) -> List[CommodityData]:
@@ -223,9 +238,11 @@ class CommodityService:
             filename = f"commodity_data_{timestamp}.csv"
         
         filepath = self.output_dir / filename
-        
-        csv_writer = CSVWriter()
-        csv_writer.write_commodity_data(commodities, filepath)
+
+        lock = _get_lock(filepath)
+        with lock:
+            csv_writer = CSVWriter()
+            csv_writer.write_commodity_data(commodities, filepath)
         
         self.logger.info(f"💾 CSV文件已保存: {filepath}")
         return filepath
@@ -237,9 +254,11 @@ class CommodityService:
             filename = f"commodity_data_{timestamp}.xlsx"
         
         filepath = self.output_dir / filename
-        
-        excel_writer = ExcelWriter()
-        excel_writer.write_commodity_data(commodities, filepath)
+
+        lock = _get_lock(filepath)
+        with lock:
+            excel_writer = ExcelWriter()
+            excel_writer.write_commodity_data(commodities, filepath)
         
         self.logger.info(f"💾 Excel文件已保存: {filepath}")
         return filepath
@@ -279,4 +298,4 @@ class CommodityService:
                 'csv': str(csv_file),
                 'excel': str(excel_file)
             }
-        } 
+        }
